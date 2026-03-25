@@ -1,0 +1,89 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+   Name = "🌪️ NDS: FIXED TERMINATOR",
+   LoadingTitle = "Patching Whitelist System...",
+   ConfigurationSaving = { Enabled = false }
+})
+
+local LP = game:GetService("Players").LocalPlayer
+local RS = game:GetService("RunService")
+
+local Main = Window:CreateTab("Genocide Hub", 4483362458)
+
+local FlingActive = false
+local FlingPower = 200000 
+local Whitelist = {}
+
+-- [수정] 화이트리스트 확인용 함수 (더 정확함)
+local function IsWhitelisted(player)
+   if player == LP then return true end
+   for _, name in pairs(Whitelist) do
+      -- 대소문자 구분 없이 아이디(Name) 또는 닉네임(DisplayName) 비교
+      if string.lower(player.Name) == string.lower(name) or 
+         string.lower(player.DisplayName) == string.lower(name) then
+         return true
+      end
+   end
+   return false
+end
+
+-------------------------------------------------------------------------
+-- [1. 화이트리스트 입력 (입력 후 Enter)]
+-------------------------------------------------------------------------
+Main:CreateInput({
+   Name = "Add Whitelist (친구 이름)",
+   PlaceholderText = "아이디 혹은 닉네임 입력",
+   RemoveTextAfterFocusLost = true,
+   Callback = function(Text)
+      if Text ~= "" then
+         table.insert(Whitelist, Text)
+         Rayfield:Notify({Title = "Whitelist", Content = "["..Text.."] 님 보호 시작", Duration = 2})
+      end
+   end,
+})
+
+-------------------------------------------------------------------------
+-- [2. R15 사출 로직 (Whitelist 적용)]
+-------------------------------------------------------------------------
+Main:CreateToggle({
+   Name = "Universal Fling (전 서버 학살)",
+   CurrentValue = false,
+   Callback = function(Value)
+      FlingActive = Value
+      
+      task.spawn(function()
+         while FlingActive do
+            for _, p in pairs(game.Players:GetPlayers()) do
+               if not FlingActive then break end
+               
+               -- [수정된 체크 로직]
+               if not IsWhitelisted(p) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                  local targetHRP = p.Character.HumanoidRootPart
+                  local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                  
+                  if targetHRP and hrp and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                     local start = tick()
+                     while tick() - start < 0.4 and FlingActive do
+                        hrp.CFrame = targetHRP.CFrame
+                        hrp.Velocity = Vector3.new(FlingPower, FlingPower, FlingPower)
+                        hrp.RotVelocity = Vector3.new(0, FlingPower * 2, 0)
+                        
+                        -- 노클립 매 프레임 주입
+                        for _, v in pairs(LP.Character:GetDescendants()) do
+                           if v:IsA("BasePart") then v.CanCollide = false end
+                        end
+                        RS.Heartbeat:Wait()
+                     end
+                  end
+               end
+            end
+            task.wait(0.1)
+         end
+      end)
+   end,
+})
+
+Main:CreateSlider({
+   Name = "Fling Power", Range = {50000, 500000}, Increment = 50000, CurrentValue = 200000,
+   Callback = function(Value) FlingPower = Value end,
+})
